@@ -12,7 +12,7 @@ load_dotenv()
 
 def buy_requests(amount, chat_id):
     """"Формирование платежа."""
-    Configuration.configure(account_id=os.getenv('ACCOUNT-ID'), secret_key=os.getenv('SECRET-KEY'))
+    Configuration.configure(account_id=os.getenv('ACCOUNT_ID'), secret_key=os.getenv('SECRET_KEY'))
     id_key = str(uuid.uuid4())
     payment = Payment.create({
         "amount": {
