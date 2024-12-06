@@ -6,9 +6,9 @@ services:
     container_name: postgres_db
     restart: always
     environment:
-      POSTGRES_USER: ${DB-USER}
-      POSTGRES_PASSWORD: ${DB-PASSWORD}
-      POSTGRES_DB: ${DB-NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     env_file:
       - .env
     ports:
@@ -16,6 +16,25 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegram_bot
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5435/${DB_NAME}
+      TELEGRAM_TOKEN: ${BOT_TOKEN}  # Токен для бота из .env
+    env_file:
+      - .env
+    volumes:
+      - .:/app  # Монтируем текущую директорию в контейнер
+    working_dir: /app
+    command: python main.py  # Команда для запуска бота
+    network_mode: host
 
 volumes:
   postgres_data:

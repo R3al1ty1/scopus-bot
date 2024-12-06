@@ -116,3 +116,4 @@ yarl==1.9.4
 keyboard==0.13.5
 sqlalchemy==2.0.35
 yookassa==3.3.0
+psycopg2-binary
