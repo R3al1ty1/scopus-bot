@@ -12,7 +12,6 @@ import DrissionPage
 
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from bypass.CloudflareBypasser import CloudflareBypasser
 from DrissionPage import ChromiumPage, ChromiumOptions
 from DrissionPage.common import Actions
 from dotenv import load_dotenv
@@ -500,8 +499,8 @@ async def download_scopus_file(query: dict, folder_id: str, flag, future):
         ac = Actions(browser)
         browser.set.timeouts(base=3, page_load=3)
         browser.get('https://www.scopus.com/search/form.uri?display=advanced')
-        cf_bypasser = CloudflareBypasser(browser)
-        await cf_bypasser.bypass()
+        # cf_bypasser = CloudflareBypasser(browser)
+        # await cf_bypasser.bypass()
 
         # await asyncio.sleep(3)
 
@@ -597,8 +596,8 @@ async def search_for_author_cred(query: dict, folder_id: str, flag, future, sear
         ac = Actions(browser)
         browser.set.timeouts(base=3, page_load=3)
         browser.get('https://www.scopus.com/search/form.uri?display=basic&zone=header&origin=searchadvanced#author')
-        cf_bypasser = CloudflareBypasser(browser)
-        await cf_bypasser.bypass()
+        # cf_bypasser = CloudflareBypasser(browser)
+        # await cf_bypasser.bypass()
 
         await authorization_scopus(browser=browser, ac=ac)
         await asyncio.sleep(2)
