@@ -14,13 +14,17 @@ from aiogram_dialog import Dialog, Window, DialogManager, ShowMode
 from aiogram_dialog.widgets.text import Format,Const
 from aiogram_dialog.widgets.kbd import Checkbox, Button, Row, Next, ScrollingGroup
 from aiogram_dialog.widgets.input import TextInput
-from database.requests import new_user, charge_request, add_requests
+from dotenv import load_dotenv
 
+from database.requests import new_user, charge_request, add_requests
 from utils.utils import download_scopus_file, downloads_done, search_for_author_cred, get_author_info
 from utils.unzipper import unzip_pngs
 from handlers.service_handlers import process_payments_command
 from utils.const import PROJECT_DIR
 
+load_dotenv()
+
+addr = os.getenv('SERVER_ADDRESS')
 
 class FSMGeneral(StatesGroup):
     choose_search = State()
@@ -72,11 +76,12 @@ async def get_current_status(folder_id, status_number):
     for i in range(5):
         await asyncio.sleep(10)
         status_number = str(status_number)
-        url = f"http://127.0.0.1:8000/status/{folder_id}/{status_number}"
+        url = f"https://scopus.baixo.keenetic.pro:8443/status/{folder_id}/{status_number}"
 
         response = requests.get(url)
+        data = response.json()
         
-        if response.get('status') == "true":
+        if data.get('status') == "true":
             return True
     return False
 
@@ -301,7 +306,7 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
         # await flag.wait()
         flag.clear()
         manager.dialog_data['flag'] = flag
-        url = "http://127.0.0.1:8000/auth/search/"
+        url = "https://scopus.baixo.keenetic.pro:8443/auth/search"
         filters = await dialog_authors(manager)
         print("Тип filters:", type(filters))
         print("Содержимое filters:", filters)
@@ -318,6 +323,7 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
             "search_type": filters['auth_search_type'],  # Строка из словаря
             "verification": "example_verification"
         }
+        print(data)
 
         print("Отправляемые данные:", data)
 
@@ -333,7 +339,7 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
         #if response.status_code == "200":
         stat = await get_current_status(manager.dialog_data['folder_id'], 1)
         if stat:
-            url = f"http://127.0.0.1:8000/result/{manager.dialog_data['folder_id']}"
+            url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
             response = requests.get(url)
             data = response.json()

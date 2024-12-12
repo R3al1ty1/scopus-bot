@@ -16,7 +16,7 @@ Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 
 # Ваш токен бота
-BOT_TOKEN = "7372222308:AAHFLiATAW-MaAKQ4C_0EWEvPvCgLjBk7pw"
+BOT_TOKEN = ""
 
 # Сообщение, которое нужно отправить
 MESSAGE = "pivo."
