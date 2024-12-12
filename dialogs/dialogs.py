@@ -477,6 +477,13 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                 
                 result = respData.get('result')
 
+                url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
+                response_files = requests.get(url_files)
+                resp_files = response_files.json()
+                png_files = resp_files["files"]["png_files"]
+                csv_files = resp_files["files"]["csv_files"]
+                ris_files = resp_files["files"]["ris_files"]
+
         if not result[0]:
             await callback.message.answer("Произошла ошибка при обработке данных.")
             await manager.done()
@@ -485,38 +492,27 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
         author_info = result[0]
         co_authors = result[1]
 
-        files_path = "scopus_files/" + str(manager.dialog_data['folder_id'])
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        parent_dir = os.path.dirname(current_dir)
-        full_folder_path = os.path.join(parent_dir, files_path)
-
-        pngs = await unzip_pngs(full_folder_path)  # Если требуется распаковка PNG файлов
         await asyncio.sleep(2)
-        if pngs:
-            png_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".png")]
-            ris_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".ris")]
-            csv_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".csv")]
+        if png_files:
+            print(len(png_files))
+            media = []
+            for file_path in png_files:
+                media.append(InputMediaPhoto(media=FSInputFile(file_path)))
 
-            if png_files:
-                print(len(png_files))
-                media = []
-                for file_path in png_files:
-                    media.append(InputMediaPhoto(media=FSInputFile(file_path)))
+            # Отправляем все фото как одну группу
+            await callback.message.answer_media_group(media)
+        else:
+            await callback.message.answer("Нет сохранённых графиков.")
 
-                # Отправляем все фото как одну группу
-                await callback.message.answer_media_group(media)
-            else:
-                await callback.message.answer("Нет сохранённых графиков.")
-
-            if csv_files:
-                for file_path in csv_files:
-                    await callback.message.answer_document(document=FSInputFile(file_path))
-                
-            if ris_files:
-                for file_path in ris_files:
-                    await callback.message.answer_document(document=FSInputFile(file_path))
-            else:
-                await callback.message.answer("Нет сохранённых файлов.")
+        if csv_files:
+            for file_path in csv_files:
+                await callback.message.answer_document(document=FSInputFile(file_path))
+            
+        if ris_files:
+            for file_path in ris_files:
+                await callback.message.answer_document(document=FSInputFile(file_path))
+        else:
+            await callback.message.answer("Нет сохранённых файлов.")
 
         output_message = "📊 Информация об авторе:\n\n"
         output_message += f"Цитирования: {author_info.get('citations', 'Неизвестно')}\n"
@@ -532,8 +528,7 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 
         await callback.message.answer(output_message)
         await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
-        if os.path.exists(full_folder_path):
-                shutil.rmtree(full_folder_path)
+
         await manager.done()
 
 
