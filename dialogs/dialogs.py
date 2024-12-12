@@ -72,8 +72,8 @@ async def dialog_get_data(dialog_manager: DialogManager, **kwargs):
     }
 
 
-async def get_current_status(folder_id, status_number):
-    for i in range(5):
+async def get_current_status(folder_id, status_number, retries):
+    for i in range(retries):
         await asyncio.sleep(10)
         status_number = str(status_number)
         url = f"https://scopus.baixo.keenetic.pro:8443/status/{folder_id}/{status_number}"
@@ -291,6 +291,7 @@ async def start_search_pubs(callback: CallbackQuery, button: Button, manager: Di
 async def start_search_auth(callback: CallbackQuery, button: Button, manager: DialogManager):
     try:
         await charge_request(str(callback.message.chat.id))
+        result = []
         manager.dialog_data['doc_count_max'] = None
         manager.dialog_data['active_array'] = None
         manager.dialog_data['folder_id'] = uuid.uuid4()
@@ -308,43 +309,29 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
         manager.dialog_data['flag'] = flag
         url = "https://scopus.baixo.keenetic.pro:8443/auth/search"
         filters = await dialog_authors(manager)
-        print("Тип filters:", type(filters))
-        print("Содержимое filters:", filters)
-        print("Тип folder_id:", type(manager.dialog_data['folder_id']))
-        print("Тип auth_search_type:", type(filters['auth_search_type']))
-
-        # Убедимся, что все ключи и значения верны
-        if 'auth_search_type' not in filters:
-            raise ValueError("Ключ 'auth_search_type' отсутствует в filters")
 
         data = {
-            "filters_dct": filters,  # Остается словарем
-            "folder_id": str(manager.dialog_data['folder_id']),  # Преобразуем в строку
-            "search_type": filters['auth_search_type'],  # Строка из словаря
+            "filters_dct": filters,
+            "folder_id": str(manager.dialog_data['folder_id']),
+            "search_type": filters['auth_search_type'],
             "verification": "example_verification"
         }
-        print(data)
-
-        print("Отправляемые данные:", data)
 
         response = requests.post(url, json=data)
-        print("Статус-код ответа:", response.status_code)
-        print("Ответ:", response.json())
-        # result = future.result()
-        # manager.dialog_data['browser'] = result[-1]
+
         for i in range(50):
             manager.find(str(i)).text = Const("-")
         for i in range(50):
             manager.find(f"key_{i}").text = Const("-")
-        #if response.status_code == "200":
-        stat = await get_current_status(manager.dialog_data['folder_id'], 1)
+
+        stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
         if stat:
             url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
             response = requests.get(url)
-            data = response.json()
+            respData = response.json()
             
-            result = data.get('result')
+            result = respData.get('result')
         if result[0] or manager.dialog_data.get("selected_type") == "keywords":
 
             if manager.dialog_data.get("selected_type") == "orcid":
@@ -451,6 +438,8 @@ def auth_buttons_create_key():
 async def process_auth_click(callback: CallbackQuery, button: Button, manager: DialogManager):
     mes = await button.text.render_text(data=manager.current_context().dialog_data, manager=manager)
     if mes != "-":
+        result = []
+        url = "https://scopus.baixo.keenetic.pro:8443/auth/search/specific"
         if manager.dialog_data['selected_type'] != "orcid":
             await callback.message.answer("Автор выбран! Теперь, пожалуйста, подождите. Наш бот уже выполняет ваш запрос. Это займет некоторое время. ⏳")
 
@@ -472,73 +461,80 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                     button_id = text[:2]
             else:
                 button_id = "1"
-        #     asyncio.create_task(get_author_info(manager.dialog_data['active_array'][int(button_id)-1]["AuthorID"], 
-        #                                         manager.dialog_data['folder_id'], 
-        #                                         manager.dialog_data['browser'], 
-        #                                         flag, 
-        #                                         future))
-        # await flag.wait()  # Ждём завершения задачи
-        # flag.clear()
-        # manager.dialog_data['auth_flag'] = flag
+            data = {
+                "folder_id": str(manager.dialog_data['folder_id']),
+                "author_id": str(manager.dialog_data['active_array'][int(button_id)-1]["AuthorID"]),
+                "verification": "example_verification"
+            }
+            response = requests.post(url, json=data)
+        
+            stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
+            if stat:
+                url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
-        # result = future.result()  # Получаем результат задачи
-        # if not result[0]:
-        #     await callback.message.answer("Произошла ошибка при обработке данных.")
-        #     return
-
-        # author_info = result[0]
-        # co_authors = result[1]
-
-        # files_path = "scopus_files/" + str(manager.dialog_data['folder_id'])
-        # current_dir = os.path.dirname(os.path.abspath(__file__))
-        # parent_dir = os.path.dirname(current_dir)
-        # full_folder_path = os.path.join(parent_dir, files_path)
-
-        # pngs = await unzip_pngs(full_folder_path)  # Если требуется распаковка PNG файлов
-        # await asyncio.sleep(2)
-        # if pngs:
-        #     png_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".png")]
-        #     ris_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".ris")]
-        #     csv_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".csv")]
-
-        #     if png_files:
-        #         print(len(png_files))
-        #         media = []
-        #         for file_path in png_files:
-        #             media.append(InputMediaPhoto(media=FSInputFile(file_path)))
-
-        #         # Отправляем все фото как одну группу
-        #         await callback.message.answer_media_group(media)
-        #     else:
-        #         await callback.message.answer("Нет сохранённых графиков.")
-
-        #     if csv_files:
-        #         for file_path in csv_files:
-        #             await callback.message.answer_document(document=FSInputFile(file_path))
+                response = requests.get(url)
+                respData = response.json()
                 
-        #     if ris_files:
-        #         for file_path in ris_files:
-        #             await callback.message.answer_document(document=FSInputFile(file_path))
-        #     else:
-        #         await callback.message.answer("Нет сохранённых файлов.")
+                result = respData.get('result')
 
-        # output_message = "📊 Информация об авторе:\n\n"
-        # output_message += f"Цитирования: {author_info.get('citations', 'Неизвестно')}\n"
-        # output_message += f"Документы: {author_info.get('documents', 'Неизвестно')}\n"
-        # output_message += f"h-индекс: {author_info.get('h_index', 'Неизвестно')}\n\n"
+        if not result[0]:
+            await callback.message.answer("Произошла ошибка при обработке данных.")
+            await manager.done()
+            return
 
-        # output_message += "👥 Соавторы:\n\n"
-        # for co_author in co_authors:
-        #     if co_author['id'] != "-":
-        #         output_message += f"- Имя:  {co_author['name']},   Документы:  {co_author['documents']},  ORCID:  {co_author['id']}\n"
-        #     else:
-        #         output_message += f"- Имя:  {co_author['name']},   Документы:  {co_author['documents']}\n"
+        author_info = result[0]
+        co_authors = result[1]
 
-        # await callback.message.answer(output_message)
-        # await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
-        # if os.path.exists(full_folder_path):
-        #         shutil.rmtree(full_folder_path)
-        # await manager.done()
+        files_path = "scopus_files/" + str(manager.dialog_data['folder_id'])
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(current_dir)
+        full_folder_path = os.path.join(parent_dir, files_path)
+
+        pngs = await unzip_pngs(full_folder_path)  # Если требуется распаковка PNG файлов
+        await asyncio.sleep(2)
+        if pngs:
+            png_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".png")]
+            ris_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".ris")]
+            csv_files = [os.path.join(full_folder_path, f) for f in os.listdir(full_folder_path) if f.endswith(".csv")]
+
+            if png_files:
+                print(len(png_files))
+                media = []
+                for file_path in png_files:
+                    media.append(InputMediaPhoto(media=FSInputFile(file_path)))
+
+                # Отправляем все фото как одну группу
+                await callback.message.answer_media_group(media)
+            else:
+                await callback.message.answer("Нет сохранённых графиков.")
+
+            if csv_files:
+                for file_path in csv_files:
+                    await callback.message.answer_document(document=FSInputFile(file_path))
+                
+            if ris_files:
+                for file_path in ris_files:
+                    await callback.message.answer_document(document=FSInputFile(file_path))
+            else:
+                await callback.message.answer("Нет сохранённых файлов.")
+
+        output_message = "📊 Информация об авторе:\n\n"
+        output_message += f"Цитирования: {author_info.get('citations', 'Неизвестно')}\n"
+        output_message += f"Документы: {author_info.get('documents', 'Неизвестно')}\n"
+        output_message += f"h-индекс: {author_info.get('h_index', 'Неизвестно')}\n\n"
+
+        output_message += "👥 Соавторы:\n\n"
+        for co_author in co_authors:
+            if co_author['id'] != "-":
+                output_message += f"- Имя:  {co_author['name']},   Документы:  {co_author['documents']},  ORCID:  {co_author['id']}\n"
+            else:
+                output_message += f"- Имя:  {co_author['name']},   Документы:  {co_author['documents']}\n"
+
+        await callback.message.answer(output_message)
+        await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
+        if os.path.exists(full_folder_path):
+                shutil.rmtree(full_folder_path)
+        await manager.done()
 
 
 async def download_file(callback: CallbackQuery, button: Button, manager: DialogManager):
