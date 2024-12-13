@@ -7,8 +7,9 @@ import os
 
 from typing import Any
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import Message, InputMediaPhoto
+from aiogram.types import Message, InputMediaPhoto, InputFile
 from aiogram import F
+from io import BytesIO
 from aiogram.types import FSInputFile, CallbackQuery
 from aiogram_dialog import Dialog, Window, DialogManager, ShowMode
 from aiogram_dialog.widgets.text import Format,Const
@@ -494,23 +495,25 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 
         await asyncio.sleep(2)
         if png_files:
-            print(len(png_files))
             media = []
-            for file_path in png_files:
-                media.append(InputMediaPhoto(media=FSInputFile(file_path)))
-
-            # Отправляем все фото как одну группу
-            await callback.message.answer_media_group(media)
-        else:
-            await callback.message.answer("Нет сохранённых графиков.")
+            for file_url in png_files:
+                response = requests.get(file_url)
+                if response.status_code == 200:
+                    media.append(InputMediaPhoto(media=BytesIO(response.content)))
+            if media:
+                await callback.message.answer_media_group(media)
+            else:
+                await callback.message.answer("Нет сохранённых графиков.")
 
         if csv_files:
-            for file_path in csv_files:
-                await callback.message.answer_document(document=FSInputFile(file_path))
-            
+            response = requests.get(csv_files)
+            if response.status_code == 200:
+                await callback.message.answer_document(document=InputFile(BytesIO(response.content), filename="result.csv"))
+
         if ris_files:
-            for file_path in ris_files:
-                await callback.message.answer_document(document=FSInputFile(file_path))
+            response = requests.get(ris_files)
+            if response.status_code == 200:
+                await callback.message.answer_document(document=InputFile(BytesIO(response.content), filename="result.ris"))
         else:
             await callback.message.answer("Нет сохранённых файлов.")
 
