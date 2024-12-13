@@ -4,6 +4,7 @@ import requests
 import asyncio
 import shutil
 import os
+import zipfile
 
 from typing import Any
 from aiogram.fsm.state import State, StatesGroup
@@ -480,10 +481,39 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 
                 url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
                 response_files = requests.get(url_files)
-                resp_files = response_files.json()
-                png_files = resp_files["files"]["png_files"]
-                csv_files = resp_files["files"]["csv_files"]
-                ris_files = resp_files["files"]["ris_files"]
+                zip_file = BytesIO(response_files.content)
+                extracted_files = {}
+                with zipfile.ZipFile(zip_file) as zf:
+                    for file_name in zf.namelist():
+                        extracted_files[file_name] = zf.read(file_name)
+        if not extracted_files:
+            await callback.message.answer("Произошла ошибка при обработке данных.")
+            await manager.done()
+            return
+
+        # Отправляем PNG файлы как медиа-группу
+        png_files = [file_name for file_name in extracted_files if file_name.endswith(".png")]
+        if png_files:
+            media = []
+            for file_name in png_files:
+                media.append(InputMediaPhoto(media=BytesIO(extracted_files[file_name])))
+            await callback.message.answer_media_group(media)
+        else:
+            await callback.message.answer("Нет сохранённых графиков.")
+
+        # Отправляем CSV файлы
+        csv_files = [file_name for file_name in extracted_files if file_name.endswith(".csv")]
+        for file_name in csv_files:
+            await callback.message.answer_document(
+                document=InputFile(BytesIO(extracted_files[file_name]), filename=file_name)
+            )
+
+        # Отправляем RIS файлы
+        ris_files = [file_name for file_name in extracted_files if file_name.endswith(".ris")]
+        for file_name in ris_files:
+            await callback.message.answer_document(
+                document=InputFile(BytesIO(extracted_files[file_name]), filename=file_name)
+            )
 
         if not result[0]:
             await callback.message.answer("Произошла ошибка при обработке данных.")
