@@ -1,44 +1,56 @@
 import os
+import asyncio
+import aiohttp
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from database.models import Chat
 from dotenv import load_dotenv
-from telegram import Bot
-import asyncio
 
-# Загрузка переменных окружения
 load_dotenv()
 
 DATABASE_URL = f"postgresql://{os.getenv('DB-USER')}:{os.getenv('DB-PASSWORD')}@{os.getenv('DB-HOST')}:{os.getenv('DB-PORT')}/{os.getenv('DB-NAME')}"
 engine = create_engine(DATABASE_URL)
-Base = declarative_base()
-Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 
-# Ваш токен бота
-BOT_TOKEN = ""
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+MESSAGE = """🎉 Поздравляем всех с наступившим 2025 годом! 
 
-# Сообщение, которое нужно отправить
-MESSAGE = "pivo."
+⚙️ Важная информация: Scopus изменил порядок авторизации, из-за чего бот может выдавать неверные результаты. В связи с этим мы полностью переписываем техническую логику бота.
 
-# Инициализация бота
-bot = Bot(token=BOT_TOKEN)
+⏳ Работа бота будет приостановлена на 2-3 дня.
 
-async def send_mail(chat_ids: list):
-    for user_id in chat_ids:
-        user_id = user_id[0]  # Извлекаем `chat_id` из кортежа
-        try:
-            await bot.send_message(chat_id=user_id, text=MESSAGE)  # Используем await
-            print(f"Сообщение отправлено пользователю {user_id}")
-        except Exception as e:
-            print(f"Ошибка при отправке пользователю {user_id}: {e}")
+💬 Приносим извинения за неудобства! Если у вас возникли ошибки в запросах, пожалуйста, напишите в поддержку — мы компенсируем любые потери, чтобы вы могли использовать обновленного бота в будущем!
+
+🙏 Спасибо за ваше понимание!"""
+BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+
+async def send_message(session, chat_id, text):
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    try:
+        async with session.post(BASE_URL, json=payload) as response:
+            if response.status != 200:
+                print(f"Ошибка {response.status} при отправке пользователю {chat_id}")
+            else:
+                print(f"Сообщение отправлено пользователю {chat_id}")
+    except Exception as e:
+        print(f"Ошибка при отправке пользователю {chat_id}: {e}")
 
 async def main():
-    session = Session()
-    chat_ids = session.query(Chat.chat_id).all()
-    session.close()
-    print(chat_ids)
-    await send_mail(chat_ids=chat_ids)  # Вызываем асинхронную функцию
+    session_db = Session()
+    try:
+        chat_ids = session_db.query(Chat.chat_id).all()
+    finally:
+        session_db.close()
+
+    chat_ids = [chat_id[0] for chat_id in chat_ids]
+
+    async with aiohttp.ClientSession() as session_http:
+        tasks = [send_message(session_http, chat_id, MESSAGE) for chat_id in chat_ids]
+        await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
-    asyncio.run(main())  # Запускаем асинхронный код
+    asyncio.run(main())

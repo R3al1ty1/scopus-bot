@@ -4,6 +4,7 @@ import requests
 import asyncio
 import shutil
 import os
+import zipfile
 
 from typing import Any
 from aiogram.fsm.state import State, StatesGroup
@@ -221,15 +222,6 @@ async def final_auth_dialog(event, source, manager: DialogManager, *args, **kwar
 async def next_and_set_not_pressed(callback: CallbackQuery, button: Button, manager: DialogManager):
     manager.dialog_data['pressed'] = False
     manager.dialog_data['pressed_new'] = False
-    # selected_type = manager.dialog_data.get("selected_type")
-    
-    # # Переходим к состояниям в зависимости от выбранного типа
-    # if selected_type == "full_name":
-    #     await manager.switch_to(FSMGeneral.full_name)
-    # elif selected_type == "orcid":
-    #     await manager.switch_to(FSMGeneral.orcid)
-    # else:
-    #     await manager.switch_to(FSMGeneral.keywords)
 
     await manager.next()
 
@@ -319,11 +311,7 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
         }
 
         response = requests.post(url, json=data)
-
-        for i in range(50):
-            manager.find(str(i)).text = Const("-")
-        for i in range(50):
-            manager.find(f"key_{i}").text = Const("-")
+        
 
         stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
         if stat:
@@ -440,6 +428,7 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
     mes = await button.text.render_text(data=manager.current_context().dialog_data, manager=manager)
     if mes != "-":
         result = []
+        
         url = "https://scopus.baixo.keenetic.pro:8443/auth/search/specific"
         if manager.dialog_data['selected_type'] != "orcid":
             await callback.message.answer("Автор выбран! Теперь, пожалуйста, подождите. Наш бот уже выполняет ваш запрос. Это займет некоторое время. ⏳")
@@ -450,9 +439,6 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
             
         else:
             text = "1"
-        flag = asyncio.Event()
-        future = asyncio.Future()
-        manager.dialog_data['auth_future'] = future
 
         if text != "-":
             if manager.dialog_data.get("selected_type") != "orcid":
@@ -478,12 +464,46 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                 
                 result = respData.get('result')
 
-                url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
-                response_files = requests.get(url_files)
-                resp_files = response_files.json()
-                png_files = resp_files["files"]["png_files"]
-                csv_files = resp_files["files"]["csv_files"]
-                ris_files = resp_files["files"]["ris_files"]
+                url_files = f"http://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
+                folder_path = "/Users/user/scopus-bot/scopus_files"
+                media = []
+                csv_file = None
+                ris_file = None
+
+                response = requests.get(url_files, stream=True)
+
+                with zipfile.ZipFile(BytesIO(response.content)) as archive:
+                    archive.extractall(folder_path)
+
+                all_files = os.listdir(folder_path)
+
+                photo_files = [
+                    f for f in all_files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
+                ]
+                csv_file = next((f for f in all_files if f.lower().endswith('.csv')), None)
+                ris_file = next((f for f in all_files if f.lower().endswith('.ris')), None)
+
+                for photo_file in photo_files:
+                    photo_path = os.path.join(folder_path, photo_file)
+                    media_item = InputMediaPhoto(media=FSInputFile(photo_path))
+                    media.append(media_item)
+
+
+                if media:
+                    await callback.message.answer_media_group(media=media)
+                else:
+                    await callback.message.answer("Нет сохранённых графиков.")
+
+                if csv_file:
+                    csv_path = os.path.join(folder_path, csv_file)
+                    await callback.message.answer_document(FSInputFile(csv_path))
+
+                if ris_file:
+                    ris_path = os.path.join(folder_path, ris_file)
+                    await callback.message.answer_document(FSInputFile(ris_path))
+
+                if not csv_file and not ris_file:
+                    await callback.message.answer("Нет сохранённых файлов.")
 
         if not result[0]:
             await callback.message.answer("Произошла ошибка при обработке данных.")
@@ -494,28 +514,6 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
         co_authors = result[1]
 
         await asyncio.sleep(2)
-        if png_files:
-            media = []
-            for file_url in png_files:
-                response = requests.get(file_url)
-                if response.status_code == 200:
-                    media.append(InputMediaPhoto(media=BytesIO(response.content)))
-            if media:
-                await callback.message.answer_media_group(media)
-            else:
-                await callback.message.answer("Нет сохранённых графиков.")
-
-        if csv_files:
-            response = requests.get(csv_files)
-            if response.status_code == 200:
-                await callback.message.answer_document(document=InputFile(BytesIO(response.content), filename="result.csv"))
-
-        if ris_files:
-            response = requests.get(ris_files)
-            if response.status_code == 200:
-                await callback.message.answer_document(document=InputFile(BytesIO(response.content), filename="result.ris"))
-        else:
-            await callback.message.answer("Нет сохранённых файлов.")
 
         output_message = "📊 Информация об авторе:\n\n"
         output_message += f"Цитирования: {author_info.get('citations', 'Неизвестно')}\n"
