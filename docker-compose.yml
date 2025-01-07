@@ -27,13 +27,13 @@ services:
       - db
     environment:
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5435/${DB_NAME}
-      TELEGRAM_TOKEN: ${BOT_TOKEN}  # Токен для бота из .env
+      TELEGRAM_TOKEN: ${BOT_TOKEN}
     env_file:
       - .env
     volumes:
-      - .:/app  # Монтируем текущую директорию в контейнер
+      - .:/app
     working_dir: /app
-    command: python main.py  # Команда для запуска бота
+    command: python main.py
     network_mode: host
 
 volumes:
