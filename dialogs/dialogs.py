@@ -50,7 +50,7 @@ class FSMGeneral(StatesGroup):
 
 
 async def dialog_get_data(dialog_manager: DialogManager, **kwargs):
-    filter_type = "-"
+    filter_type = ""
 
     if dialog_manager.find("title").is_checked():
         filter_type = "Title"
