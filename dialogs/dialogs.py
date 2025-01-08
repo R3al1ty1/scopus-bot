@@ -533,7 +533,7 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 
         await callback.message.answer(output_message)
         await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
-
+        media = []
         await manager.done()
 
 
