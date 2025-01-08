@@ -5,6 +5,7 @@ import asyncio
 import shutil
 import os
 import zipfile
+import aiohttp
 
 from typing import Any
 from aiogram.fsm.state import State, StatesGroup
@@ -256,14 +257,6 @@ async def start_search_pubs(callback: CallbackQuery, button: Button, manager: Di
 
     await callback.message.answer("Отлично! Теперь, пожалуйста, подождите. Наш бот уже выполняет ваш запрос. Это займет около минуты. ⏳")
 
-    # flag = asyncio.Event()
-    # future = asyncio.Future()
-    # manager.dialog_data['future'] = future
-    # asyncio.create_task(download_scopus_file(await dialog_get_data(manager), manager.dialog_data['folder_id'], flag, future))
-    # await flag.wait()
-    # flag.clear()
-    # manager.dialog_data['flag'] = flag
-    # result = future.result()
     url = "https://scopus.baixo.keenetic.pro:8443/pub/search"
     query = await dialog_get_data(manager)
     data = {
@@ -562,20 +555,37 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 async def download_file(callback: CallbackQuery, button: Button, manager: DialogManager):
     manager.dialog_data['pressed_new'] = True
     folder_path = f"{PROJECT_DIR}/scopus_files/{manager.dialog_data['folder_id']}"
+    file_path = f"{folder_path}/scopus.ris"
+    
     try:
         await callback.message.answer("Отлично! Подождите, пожалуйста, пока мы скачиваем файл — это может занять некоторое время. ⏳")
-        manager.dialog_data['flag'].set()  # установить флаг для начала загрузки
-        await asyncio.sleep(1)
-        await downloads_done(manager.dialog_data['folder_id'])
-        file_path = f"{folder_path}/scopus.ris"
-        
-        await callback.message.answer_document(document=FSInputFile(file_path))
-        await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
+        stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
+        if stat:
+            url_files = f"https://scopus.baixo.keenetic.pro:8443/pub/get/files/{manager.dialog_data['folder_id']}"
 
-        if os.path.exists(folder_path):
-            shutil.rmtree(folder_path)
+            # Создаем директорию, если она не существует
+            os.makedirs(folder_path, exist_ok=True)
 
-        await manager.done()
+            # Асинхронный запрос к серверу для загрузки файла
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url_files, ssl=False) as response:
+                    if response.status == 200:
+                        with open(file_path, 'wb') as f:
+                            while True:
+                                chunk = await response.content.read(1024)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                    else:
+                        await callback.message.answer("Не удалось загрузить файл. Пожалуйста, попробуйте позже.")
+                        return
+
+            # Отправляем файл пользователю
+            await callback.message.answer_document(document=FSInputFile(file_path))
+            await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
+
+        else:
+            await callback.message.answer("Файл еще не готов. Пожалуйста, попробуйте позже.")
 
     except Exception as e:
         await callback.message.answer("Произошла ошибка, скорее всего, Scopus начудил.\n\nМы не спишем вам запрос. Попробуйте заново или переформулируйте запрос.")
@@ -587,6 +597,7 @@ async def download_file(callback: CallbackQuery, button: Button, manager: Dialog
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
 
+    finally:
         await manager.done()
 
 
