@@ -457,7 +457,7 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
         
             stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
             if stat:
-                url_files = f"http://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
+                url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
                 folder_path = "/Users/user/scopus-bot/scopus_files"
                 media = []
                 csv_file = None
