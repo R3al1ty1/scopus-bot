@@ -458,7 +458,9 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
             stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
             if stat:
                 url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
-                folder_path = "/Users/user/scopus-bot/scopus_files"
+                files_path = "scopus_files/" + str(manager.dialog_data['folder_id'])
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                folder_path = os.path.join(current_dir, files_path)
                 media = []
                 csv_file = None
                 ris_file = None
@@ -533,7 +535,6 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 
         await callback.message.answer(output_message)
         await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
-        media = []
         await manager.done()
 
 
