@@ -80,7 +80,7 @@ async def get_current_status(folder_id, status_number, retries):
         status_number = str(status_number)
         url = f"https://scopus.baixo.keenetic.pro:8443/status/{folder_id}/{status_number}"
 
-        response = requests.get(url)
+        response = requests.get(url, verify=False)
         data = response.json()
         
         if data.get('status') == "true":
@@ -310,18 +310,21 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
             "verification": "example_verification"
         }
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, verify=False)
         
 
         stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
         if stat:
             url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
-            response = requests.get(url)
+            response = requests.get(url, verify=False)
             respData = response.json()
             
             result = respData.get('result')
         if result[0] or manager.dialog_data.get("selected_type") == "keywords":
+            for i in range(50):
+                manager.find(f"key_{i}").text = Const('-')
+                    
 
             if manager.dialog_data.get("selected_type") == "orcid":
                 manager.dialog_data['doc_count_max'] = result[1]
@@ -453,7 +456,7 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                 "author_id": str(manager.dialog_data['active_array'][int(button_id)-1]["AuthorID"]),
                 "verification": "example_verification"
             }
-            response = requests.post(url, json=data)
+            response = requests.post(url, json=data, verify=False)
         
             stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
             if stat:
@@ -465,7 +468,7 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                 csv_file = None
                 ris_file = None
 
-                response = requests.get(url_files, stream=True)
+                response = requests.get(url_files, stream=True, verify=False)
 
                 with zipfile.ZipFile(BytesIO(response.content)) as archive:
                     archive.extractall(folder_path)
@@ -502,7 +505,7 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                 try:
                     url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
-                    response = requests.get(url)
+                    response = requests.get(url, verify=False)
                     respData = response.json()
                     
                     result = respData.get('result')
