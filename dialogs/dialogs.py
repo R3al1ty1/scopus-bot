@@ -81,12 +81,13 @@ async def get_current_status(folder_id, status_number, retries):
         status_number = str(status_number)
         url = f"https://scopus.baixo.keenetic.pro:8443/status/{folder_id}/{status_number}"
 
-        response = requests.get(url, verify=False)
-        data = response.json()
-        
-        if data.get('status') == "true":
-            return True
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, ssl=False) as response:
+                data = await response.json()
+                if data.get('status') == "true":
+                    return True
     return False
+
 
 async def dialog_authors(dialog_manager: DialogManager, **kwargs):
     
@@ -265,15 +266,15 @@ async def start_search_pubs(callback: CallbackQuery, button: Button, manager: Di
             "verification": "example_verification"
         }
 
-    response = requests.post(url, json=data, verify=False)
-    stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
-    if stat:
-        url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=data, ssl=False) as response:
+            stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
+            if stat:
+                url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
-        response = requests.get(url, verify=False)
-        respData = response.json()
-        
-        result = respData.get('result')
+                async with session.get(url, ssl=False) as resp:
+                    respData = await resp.json()
+                    result = respData.get('result')
     if result[0]:
         manager.dialog_data['pubs_found'] = result[1]
         manager.dialog_data['newest'] = result[2]
@@ -319,17 +320,15 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
             "verification": "example_verification"
         }
 
-        response = requests.post(url, json=data, verify=False)
-        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data, ssl=False) as response:
+                stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
+                if stat:
+                    url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
-        stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
-        if stat:
-            url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
-
-            response = requests.get(url, verify=False)
-            respData = response.json()
-            
-            result = respData.get('result')
+                    async with session.get(url, ssl=False) as resp:
+                        respData = await resp.json()
+                        result = respData.get('result')
         if result[0] or manager.dialog_data.get("selected_type") == "keywords":
             for i in range(50):
                 manager.find(str(i)).text = Const("-")
@@ -470,58 +469,65 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
             response = requests.post(url, json=data, verify=False)
         
             stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
-            if stat:
-                url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
-                files_path = "scopus_files/" + str(manager.dialog_data['folder_id'])
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                folder_path = os.path.join(current_dir, files_path)
-                media = []
-                csv_file = None
-                ris_file = None
 
-                response = requests.get(url_files, stream=True, verify=False)
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=data, ssl=False) as response:
+                    stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
+                    if stat:
 
-                with zipfile.ZipFile(BytesIO(response.content)) as archive:
-                    archive.extractall(folder_path)
+                        url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
+                        files_path = "scopus_files/" + str(manager.dialog_data['folder_id'])
+                        current_dir = os.path.dirname(os.path.abspath(__file__))
+                        folder_path = os.path.join(current_dir, files_path)
+                        media = []
+                        csv_file = None
+                        ris_file = None
 
-                all_files = os.listdir(folder_path)
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(url_files, ssl=False) as response:
+                                if response.status == 200:
+                                    content = await response.read()
+                                    with zipfile.ZipFile(BytesIO(content)) as archive:
+                                        archive.extractall(folder_path)
 
-                photo_files = [
-                    f for f in all_files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
-                ]
-                csv_file = next((f for f in all_files if f.lower().endswith('.csv')), None)
-                ris_file = next((f for f in all_files if f.lower().endswith('.ris')), None)
+                        all_files = os.listdir(folder_path)
 
-                for photo_file in photo_files:
-                    photo_path = os.path.join(folder_path, photo_file)
-                    media_item = InputMediaPhoto(media=FSInputFile(photo_path))
-                    media.append(media_item)
+                        photo_files = [
+                            f for f in all_files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
+                        ]
+                        csv_file = next((f for f in all_files if f.lower().endswith('.csv')), None)
+                        ris_file = next((f for f in all_files if f.lower().endswith('.ris')), None)
+
+                        for photo_file in photo_files:
+                            photo_path = os.path.join(folder_path, photo_file)
+                            media_item = InputMediaPhoto(media=FSInputFile(photo_path))
+                            media.append(media_item)
 
 
-                if media:
-                    await callback.message.answer_media_group(media=media)
-                else:
-                    await callback.message.answer("Нет сохранённых графиков.")
+                        if media:
+                            await callback.message.answer_media_group(media=media)
+                        else:
+                            await callback.message.answer("Нет сохранённых графиков.")
 
-                if csv_file:
-                    csv_path = os.path.join(folder_path, csv_file)
-                    await callback.message.answer_document(FSInputFile(csv_path))
+                        if csv_file:
+                            csv_path = os.path.join(folder_path, csv_file)
+                            await callback.message.answer_document(FSInputFile(csv_path))
 
-                if ris_file:
-                    ris_path = os.path.join(folder_path, ris_file)
-                    await callback.message.answer_document(FSInputFile(ris_path))
+                        if ris_file:
+                            ris_path = os.path.join(folder_path, ris_file)
+                            await callback.message.answer_document(FSInputFile(ris_path))
 
-                if not csv_file and not ris_file:
-                    await callback.message.answer("Нет сохранённых файлов.")
-                try:
-                    url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
+                        if not csv_file and not ris_file:
+                            await callback.message.answer("Нет сохранённых файлов.")
+                        try:
+                            url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
-                    response = requests.get(url, verify=False)
-                    respData = response.json()
-                    
-                    result = respData.get('result')
-                except:
-                    print(traceback.print_exc())
+                            response = requests.get(url, verify=False)
+                            respData = response.json()
+                            
+                            result = respData.get('result')
+                        except:
+                            print(traceback.print_exc())
 
                 
 
