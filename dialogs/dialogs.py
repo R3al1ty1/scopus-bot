@@ -264,21 +264,37 @@ async def start_search_pubs(callback: CallbackQuery, button: Button, manager: Di
     # flag.clear()
     # manager.dialog_data['flag'] = flag
     # result = future.result()
+    url = "https://scopus.baixo.keenetic.pro:8443/pub/search"
+    query = await dialog_get_data(manager)
+    data = {
+            "filters_dct": query,
+            "folder_id": str(manager.dialog_data['folder_id']),
+            "verification": "example_verification"
+        }
 
-    # if result[0]:
-    #     manager.dialog_data['pubs_found'] = result[1]
-    #     manager.dialog_data['newest'] = result[2]
-    #     manager.dialog_data['oldest'] = result[3]
-    #     manager.dialog_data['most_cited'] = result[4]
-    #     manager.dialog_data['active_array'] = result[2]
+    response = requests.post(url, json=data, verify=False)
+    stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
+    if stat:
+        url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
 
-    #     for i in range(len(result[2])):
-    #         manager.find(f"pub_{i}").text = Const(str(i + 1) + ". " + str(result[2][i]["Title"]))
-    #     await manager.switch_to(state=FSMGeneral.check_pubs, show_mode=ShowMode.SEND)
+        response = requests.get(url, verify=False)
+        respData = response.json()
+        
+        result = respData.get('result')
+    if result[0]:
+        manager.dialog_data['pubs_found'] = result[1]
+        manager.dialog_data['newest'] = result[2]
+        manager.dialog_data['oldest'] = result[3]
+        manager.dialog_data['most_cited'] = result[4]
+        manager.dialog_data['active_array'] = result[2]
 
-    # else:
-    #     await callback.message.answer(text="По Вашему запросу не было найдено ни одной статьи.\n\nСпасибо, что воспользовались нашим ботом! 🎉\n\nЧтобы искать снова, напишите команду /search")
-    #     await manager.done()
+        for i in range(len(result[2])):
+            manager.find(f"pub_{i}").text = Const(str(i + 1) + ". " + str(result[2][i]["Title"]))
+        await manager.switch_to(state=FSMGeneral.check_pubs, show_mode=ShowMode.SEND)
+
+    else:
+        await callback.message.answer(text="По Вашему запросу не было найдено ни одной статьи.\n\nСпасибо, что воспользовались нашим ботом! 🎉\n\nЧтобы искать снова, напишите команду /search")
+        await manager.done()
 
 
 async def start_search_auth(callback: CallbackQuery, button: Button, manager: DialogManager):
