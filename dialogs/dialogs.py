@@ -457,16 +457,6 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
         
             stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
             if stat:
-                try:
-                    url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
-
-                    response = requests.get(url)
-                    respData = response.json()
-                    
-                    result = respData.get('result')
-                except:
-                    print(traceback.print_exc())
-
                 url_files = f"http://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
                 folder_path = "/Users/user/scopus-bot/scopus_files"
                 media = []
@@ -507,6 +497,17 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 
                 if not csv_file and not ris_file:
                     await callback.message.answer("Нет сохранённых файлов.")
+                try:
+                    url = f"https://scopus.baixo.keenetic.pro:8443/result/{manager.dialog_data['folder_id']}"
+
+                    response = requests.get(url)
+                    respData = response.json()
+                    
+                    result = respData.get('result')
+                except:
+                    print(traceback.print_exc())
+
+                
 
         if not result[0]:
             await callback.message.answer("Произошла ошибка при обработке данных.")
