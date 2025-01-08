@@ -323,7 +323,9 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
             result = respData.get('result')
         if result[0] or manager.dialog_data.get("selected_type") == "keywords":
             for i in range(50):
-                manager.find(f"key_{i}").text = Const('-')
+                manager.find(str(i)).text = Const("-")
+            for i in range(50):
+                manager.find(f"key_{i}").text = Const("-")
                     
 
             if manager.dialog_data.get("selected_type") == "orcid":
