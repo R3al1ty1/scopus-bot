@@ -7,12 +7,16 @@ aiosignal==1.3.2
 annotated-types==0.7.0
 asyncio==3.4.3
 attrs==24.3.0
+beautifulsoup4==4.12.3
+bs4==0.0.2
 cachetools==5.5.0
 certifi==2024.12.14
 charset-normalizer==3.4.0
 DateTime==5.5
 Deprecated==1.2.15
+DrissionPage==4.0.5.6
 distro==1.9.0
+environs==11.0.0
 frozenlist==1.5.0
 idna==3.10
 Jinja2==3.1.4
@@ -28,8 +32,10 @@ pydantic_core==2.23.4
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytz==2024.2
+psycopg2-binary
 requests==2.32.3
 setuptools==75.6.0
+selenium==4.9.1
 six==1.17.0
 SQLAlchemy==2.0.36
 telegram==0.0.1
