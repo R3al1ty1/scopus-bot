@@ -1,0 +1,14 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY requirements.admin.txt .
+RUN pip install --no-cache-dir -r requirements.admin.txt
+
+COPY . /app
+
+COPY admin.py .
+
+COPY .env .
+
+CMD ["python", "admin.py"]

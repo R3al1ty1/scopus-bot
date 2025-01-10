@@ -36,6 +36,25 @@ services:
     command: python main.py
     network_mode: host
 
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    container_name: telegram_admin
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      TELEGRAM_TOKEN: ${BOT_ADMIN}
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python admin.py
+    network_mode: host
+
 volumes:
   postgres_data:
     driver: local
