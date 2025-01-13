@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from database.models import Chat, Base
 from dotenv import load_dotenv
@@ -22,7 +22,7 @@ else:
         if 'subscription_end' not in columns:
             with engine.connect() as connection:
                 connection.execute(
-                    "ALTER TABLE user_requests ADD COLUMN subscription_end TEXT"
+                    text("ALTER TABLE user_requests ADD COLUMN subscription_end TEXT")
                 )
                 print("Поле 'subscription_end' успешно добавлено.")
     except Exception as e:
