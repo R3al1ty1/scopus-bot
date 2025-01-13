@@ -20,14 +20,13 @@ else:
     try:
         columns = [col['name'] for col in inspector.get_columns('user_requests')]
         if 'subscription_end' not in columns:
-            with engine.connect() as connection:
+            with engine.begin() as connection:
                 connection.execute(
-                    "ALTER TABLE user_requests ADD COLUMN subscription_end TIMESTAMP"
+                    "ALTER TABLE user_requests ADD COLUMN IF NOT EXISTS subscription_end TIMESTAMP"
                 )
                 print("Поле 'subscription_end' успешно добавлено.")
     except Exception as e:
         print(f"Ошибка при добавлении поля 'subscription_end': {e}")
-
 
 try:
     users = session.query(Chat).all()
