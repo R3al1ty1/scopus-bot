@@ -18,3 +18,4 @@ class Chat(Base):
     username = Column(String)
     requests = Column(Integer, default=0)
     trial_start = Column(String)
+    subscription_end = Column(String)

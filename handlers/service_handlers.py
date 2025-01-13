@@ -6,7 +6,7 @@ from aiogram_dialog import DialogManager
 
 from utils.payments import buy_requests, check_payment_status, get_requests_amount
 from utils.const import AMOUNTS_DCT
-from database.requests import get_requests, add_requests
+from database.requests import get_requests, add_requests, get_subscription_status, new_user
 
 
 router = Router()
@@ -22,10 +22,11 @@ button_20 = InlineKeyboardButton(text='20', callback_data='button_20')
 button_small = InlineKeyboardButton(text='SmallLab', callback_data='small')
 button_medium = InlineKeyboardButton(text='MediumLab', callback_data='medium')
 button_large = InlineKeyboardButton(text='LargeLab', callback_data='large')
+button_sub = InlineKeyboardButton(text='Подписка на 30 дней', callback_data='subscription')
 
 keyboard_payments = InlineKeyboardMarkup(inline_keyboard=[
     [button_1, button_5, button_10, button_20],
-    # [button_small, button_medium, button_large]
+    [button_sub]
 ])
 
 
@@ -48,6 +49,9 @@ https://telegra.ph/Kak-ispolzovat-ScopusRuBot-12-04
 @router.message(Command(commands='start'), StateFilter(default_state))
 async def process_start_command(message: Message):
     """Обработчик команды /start."""
+    chat_id = str(message.chat.id)
+    username = str(message.chat.username)
+    new_user(chat_id, username)
     await message.answer(
         text="Привет! 👋 Этот бот поможет вам легко и быстро получить доступ к функционалу Скопус.\n\nВоспользуйтесь кнопкой ниже или введите /search.\n\n🎉 Поздравляем! Вы активировали 7 дней неограниченного пробного периода!",
         reply_markup=keyboard
@@ -60,17 +64,18 @@ async def process_payments_command(message: Message):
     await message.answer(
         text="""💰 Выберите, пожалуйста, количество запросов для покупки:
 
-1 запрос - <s>49 руб</s>  29 руб*
-5 запросов - <s>229 руб</s>  149 руб*
-10 запросов - <s>419 руб</s>  269 руб*
-20 запросов - <s>799 руб</s>  449 руб*
+Подписка на 30 дней - 229 рублей
+1 запрос -  29 руб
+5 запросов -  149 руб
+10 запросов -  269 руб
+20 запросов -  449 руб
 
-*Цены со скидкой на время бета-тестирования""",
+""",
         reply_markup=keyboard_payments
     )
 
 
-@router.callback_query(F.data.in_(['button_1', 'button_5', 'button_10', 'button_20', 'small', 'medium', 'large']))
+@router.callback_query(F.data.in_(['button_1', 'button_5', 'button_10', 'button_20', 'small', 'medium', 'large', 'subscription']))
 async def generate_payment(callback: CallbackQuery):
     """Формирование платежа и его проверки."""
     amount = AMOUNTS_DCT[callback.data]
@@ -90,7 +95,9 @@ async def check_payment(callback: CallbackQuery):
     reqs = get_requests_amount(callback.data.split('_')[-1])
     if res:
         add_requests(callback.message.chat.id, reqs)
-        if reqs == 1:
+        if reqs == 0:
+            await callback.message.answer(f"✅ Оплата успешно завершена, подписка активирована.")
+        elif reqs == 1:
             await callback.message.answer(f"✅ Оплата успешно завершена, на баланс зачислен 1 запрос.")
         else:
             await callback.message.answer(f"✅ Оплата успешно завершена, на баланс зачислено {reqs} запросов.")
@@ -106,6 +113,16 @@ async def process_support_command(message: Message):
 
 @router.message(Command(commands='balance'), StateFilter(default_state))
 async def process_balance_command(message: Message):
-    """Обработчик команды /balance."""
+
     requests = get_requests(message.chat.id)
-    await message.answer(f"Количество запросов на вашем счету: {requests}.\n💳 Чтобы пополнить баланс, используйте команду /payments.")
+    sub_status, end_sub = get_subscription_status(message.chat.id)
+    if sub_status == 'активна':
+        if not requests:
+            await message.answer(f"Ваша подписка {sub_status} до {end_sub}.\n💳 Чтобы пополнить баланс, используйте команду /payments.")
+        else:
+            await message.answer(f"Ваша подписка {sub_status} до {end_sub}.\n Количество запросов на Вашем счету: {requests}\n\n💳 Чтобы пополнить баланс, используйте команду /payments.")
+    else:
+        if not requests:
+            await message.answer(f"Ваша подписка {sub_status} {end_sub}.\n💳 Чтобы приобрести новую, используйте команду /payments.")
+        else:
+            await message.answer(f"Количество запросов на вашем счету: {requests}.\n💳 Чтобы пополнить баланс, используйте команду /payments.")

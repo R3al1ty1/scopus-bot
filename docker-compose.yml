@@ -12,10 +12,12 @@ services:
     env_file:
       - .env
     ports:
-      - "5435:5432"
+      - "5435:5432"  # Порт для хоста
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mynetwork
 
   bot:
     build:
@@ -25,16 +27,21 @@ services:
     restart: always
     depends_on:
       - db
+      - redis
+      - celery
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5435/${DB_NAME}
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}  # Используем правильный порт
       TELEGRAM_TOKEN: ${BOT_TOKEN}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     env_file:
       - .env
     volumes:
       - .:/app
     working_dir: /app
     command: python main.py
-    network_mode: host
+    networks:
+      - mynetwork
 
   admin:
     build:
@@ -45,7 +52,7 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}  # Используем правильный порт
       TELEGRAM_TOKEN: ${BOT_ADMIN}
     env_file:
       - .env
@@ -53,8 +60,49 @@ services:
       - .:/app
     working_dir: /app
     command: python admin.py
-    network_mode: host
+    networks:
+      - mynetwork
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mynetwork
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery_worker
+    restart: always
+    depends_on:
+      - redis
+      - db
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}  # Используем правильный порт
+      TELEGRAM_TOKEN: ${BOT_TOKEN}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: celery -A tasks.celery_app worker --loglevel=info
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local

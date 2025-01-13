@@ -4,7 +4,9 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import sessionmaker
 from database.models import Chat
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
+from utils.const import MONTHS_DCT
+from tasks.tasks import send_message
 
 import os
 
@@ -25,8 +27,10 @@ def new_user(chat_id, username):
     if not chat:
         now = datetime.now()
         now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+        new_date = now + timedelta(days=7)
+        new_date_str = new_date.strftime("%Y-%m-%d %H:%M:%S")
         # Если записи нет, добавляем ее
-        new_chat = Chat(chat_id=chat_id, username=username, trial_start=now_str)
+        new_chat = Chat(chat_id=chat_id, username=username, trial_start=now_str, subscription_end=new_date_str)
         session.add(new_chat)
         try:
             session.commit()
@@ -41,32 +45,60 @@ async def charge_request(chat_id):
     session = Session()
     chat = session.query(Chat).filter_by(chat_id=chat_id).first()
 
-    db_time = chat.trial_start
-    date_format = "%Y-%m-%d %H:%M:%S"  # Указываем формат, соответствующий строке
-    start_time = datetime.strptime(db_time, date_format)
+    db_time_end = chat.subscription_end
+    date_format = "%Y-%m-%d %H:%M:%S"
+    end_time = datetime.strptime(db_time_end, date_format)
     now = datetime.now()
-    days_diff = now - start_time
+    diff = now - end_time
 
-    if days_diff.days > 7:
+    if diff.days >= 0:
         
         chat.requests -= 1
         session.commit()
     session.close()
 
 
-def add_requests(chat_id, num):
+def add_requests_error(chat_id, num):
     """Добавление заданного количества запросов пользователю."""
+
     session = Session()
     chat = session.query(Chat).filter_by(chat_id=chat_id).first()
-    db_time = chat.trial_start
-    date_format = "%Y-%m-%d %H:%M:%S"  # Указываем формат, соответствующий строке
-    start_time = datetime.strptime(db_time, date_format)
+
+    db_time_end = chat.subscription_end
+    date_format = "%Y-%m-%d %H:%M:%S"
+    end_time = datetime.strptime(db_time_end, date_format)
     now = datetime.now()
-    days_diff = now - start_time
-    if days_diff.days > 7:
+    diff = now - end_time
+
+    if diff.days >= 0:
         chat.requests += num
         session.commit()
-        session.close()
+    session.close()
+
+
+def add_requests(chat_id, num):
+    """Добавление заданного количества запросов пользователю."""
+
+    session = Session()
+    chat = session.query(Chat).filter_by(chat_id=chat_id).first()
+
+    if num == 0: # если количество запросов 0, значит покупают подписку
+        now = datetime.now()
+        new_end_time = now + timedelta(days=30) # подписка на 30 дней
+
+        date_format = "%Y-%m-%d %H:%M:%S"
+        end_time_str = new_end_time.strftime(date_format)
+        chat.subscription_end = end_time_str
+        send_message.apply_async(
+            (chat_id, "Ваша подписка истекает через 1 день. Продлите её, чтобы продолжать пользоваться сервисом."),
+            eta=datetime.now() + timedelta(days=29)
+        )
+
+    else:
+        chat.requests += num
+
+    session.commit()
+    session.close()
 
 
 def get_requests(chat_id):
@@ -79,17 +111,44 @@ def get_requests(chat_id):
     return num
 
 
+def get_subscription_status(chat_id):
+    status = 'закончилась'
+    date_format = "%Y-%m-%d %H:%M:%S"
+
+    session = Session()
+    chat = session.query(Chat).filter_by(chat_id=chat_id).first()
+
+    end_date = chat.subscription_end
+    
+    end = datetime.strptime(end_date, date_format)
+    now = datetime.now()
+    diff = end - now
+
+    # Преобразуем разницу в секунды
+    if diff.total_seconds() >= 0:  # Проверяем разницу в секундах
+        status = 'активна'
+
+    # Преобразуем дату окончания в удобный формат
+    sub_end = chat.subscription_end.split(' ')[0]
+    sub_end = sub_end.split('-')[::-1]
+
+    sub_end[1] = MONTHS_DCT[sub_end[1]]
+    sub_end = ' '.join(sub_end)
+    
+    return status, sub_end
+
+
 def enough_requests(chat_id):
     session = Session()
     chat = session.query(Chat).filter_by(chat_id=chat_id).first()
 
-    db_time = chat.trial_start
-    date_format = "%Y-%m-%d %H:%M:%S"  # Указываем формат, соответствующий строке
-    start_time = datetime.strptime(db_time, date_format)
+    db_time_end = chat.subscription_end
+    date_format = "%Y-%m-%d %H:%M:%S"
+    end_time = datetime.strptime(db_time_end, date_format)
     now = datetime.now()
-    days_diff = now - start_time
+    diff = now - end_time
 
-    if days_diff.days > 7:
+    if diff.days >= 0:
         if chat.requests == 0:
             return False
 

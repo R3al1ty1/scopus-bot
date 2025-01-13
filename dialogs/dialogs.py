@@ -19,7 +19,7 @@ from aiogram_dialog.widgets.kbd import Checkbox, Button, Row, Next, ScrollingGro
 from aiogram_dialog.widgets.input import TextInput
 from dotenv import load_dotenv
 
-from database.requests import new_user, charge_request, add_requests
+from database.requests import new_user, charge_request, add_requests_error
 from utils.utils import download_scopus_file, downloads_done, search_for_author_cred, get_author_info
 from utils.unzipper import unzip_pngs
 from handlers.service_handlers import process_payments_command
@@ -596,7 +596,7 @@ async def download_file(callback: CallbackQuery, button: Button, manager: Dialog
     except Exception as e:
         await callback.message.answer("Произошла ошибка, скорее всего, Scopus начудил.\n\nМы не спишем вам запрос. Попробуйте заново или переформулируйте запрос.")
         chat_id = str(callback.message.chat.id)
-        add_requests(chat_id, 1)
+        add_requests_error(chat_id, 1)
         print(e)
         traceback.print_exc()
 

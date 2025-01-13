@@ -10,6 +10,7 @@ attrs==24.3.0
 beautifulsoup4==4.12.3
 bs4==0.0.2
 cachetools==5.5.0
+celery==5.4.0
 certifi==2024.12.14
 charset-normalizer==3.4.0
 DateTime==5.5
@@ -46,3 +47,4 @@ wrapt==1.17.0
 yarl==1.18.3
 yookassa==3.4.3
 zope.interface==7.2
+redis==5.2.1
