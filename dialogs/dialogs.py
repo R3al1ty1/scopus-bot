@@ -1163,7 +1163,7 @@ main_menu = Dialog(
                 Const("☑️ RIS"),
                 Const("⬜ RIS"),
                 id="ris",
-                default=True,  # so it will be checked by default,
+                default=False,  # so it will be checked by default,
                 on_click=document_download_type,
             ),
         ),
