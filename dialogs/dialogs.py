@@ -371,7 +371,7 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
 
         if result[0] or manager.dialog_data.get("selected_type") == "keywords":
             for i in range(50):
-                manager.find(str(i)).text = Const("-")
+                manager.find(f"auth_{i}").text = Const("-")
             for i in range(50):
                 manager.find(f"key_{i}").text = Const("-")
                     
@@ -394,7 +394,7 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
                 manager.dialog_data['affil_z'] = result[8]
 
                 for i in range(len(result[1])):
-                    manager.find(str(i)).text = Const(str(i + 1) + ". " + str(result[1][i]["Author"]) + " | " + str(result[1][i]["Documents"]) + " | " + str(result[1][i]["Affiliation"]))
+                    manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(result[1][i]["Author"]) + " | " + str(result[1][i]["Documents"]) + " | " + str(result[1][i]["Affiliation"]))
                 await manager.switch_to(state=FSMGeneral.check_auths, show_mode=ShowMode.SEND)
                 # await manager.update()
 
@@ -704,7 +704,7 @@ async def sort_by_doc_count_max(callback: CallbackQuery, button: Button, manager
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
     for i in range(len(manager.dialog_data['doc_count_max'])):
-        manager.find(str(i)).text = Const(str(i + 1) + ". " + str(manager.dialog_data['doc_count_max'][i]["Author"]) + " | " + str(manager.dialog_data['doc_count_max'][i]["Documents"]) + " | " + str(manager.dialog_data['doc_count_max'][i]["Affiliation"]))
+        manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(manager.dialog_data['doc_count_max'][i]["Author"]) + " | " + str(manager.dialog_data['doc_count_max'][i]["Documents"]) + " | " + str(manager.dialog_data['doc_count_max'][i]["Affiliation"]))
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
 
@@ -723,7 +723,7 @@ async def sort_by_doc_count_low(callback: CallbackQuery, button: Button, manager
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
     for i in range(len(manager.dialog_data['doc_count_low'])):
-        manager.find(str(i)).text = Const(str(i + 1) + ". " + str(manager.dialog_data['doc_count_low'][i]["Author"]) + " | " + str(manager.dialog_data['doc_count_low'][i]["Documents"]) + " | " + str(manager.dialog_data['doc_count_low'][i]["Affiliation"]))
+        manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(manager.dialog_data['doc_count_low'][i]["Author"]) + " | " + str(manager.dialog_data['doc_count_low'][i]["Documents"]) + " | " + str(manager.dialog_data['doc_count_low'][i]["Affiliation"]))
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_low']
 
 
@@ -742,7 +742,7 @@ async def sort_by_h_index_max(callback: CallbackQuery, button: Button, manager: 
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
     for i in range(len(manager.dialog_data['hindex_max'])):
-        manager.find(str(i)).text = Const(str(i + 1) + ". " + str(manager.dialog_data['hindex_max'][i]["Author"]) + " | " + str(manager.dialog_data['hindex_max'][i]["Documents"]) + " | " + str(manager.dialog_data['hindex_max'][i]["Affiliation"]))
+        manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(manager.dialog_data['hindex_max'][i]["Author"]) + " | " + str(manager.dialog_data['hindex_max'][i]["Documents"]) + " | " + str(manager.dialog_data['hindex_max'][i]["Affiliation"]))
     manager.dialog_data['active_array'] = manager.dialog_data['hindex_max']
 
 
@@ -761,7 +761,7 @@ async def sort_by_h_index_low(callback: CallbackQuery, button: Button, manager: 
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
     for i in range(len(manager.dialog_data['hindex_low'])):
-        manager.find(str(i)).text = Const(str(i + 1) + ". " + str(manager.dialog_data['hindex_low'][i]["Author"]) + " | " + str(manager.dialog_data['hindex_low'][i]["Documents"]) + " | " + str(manager.dialog_data['hindex_low'][i]["Affiliation"]))
+        manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(manager.dialog_data['hindex_low'][i]["Author"]) + " | " + str(manager.dialog_data['hindex_low'][i]["Documents"]) + " | " + str(manager.dialog_data['hindex_low'][i]["Affiliation"]))
     manager.dialog_data['active_array'] = manager.dialog_data['hindex_low']
 
 
@@ -780,7 +780,7 @@ async def sort_by_author_a(callback: CallbackQuery, button: Button, manager: Dia
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
     for i in range(len(manager.dialog_data['author_a'])):
-        manager.find(str(i)).text = Const(str(i + 1) + ". " + str(manager.dialog_data['author_a'][i]["Author"]) + " | " + str(manager.dialog_data['author_a'][i]["Documents"]) + " | " + str(manager.dialog_data['author_a'][i]["Affiliation"]))
+        manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(manager.dialog_data['author_a'][i]["Author"]) + " | " + str(manager.dialog_data['author_a'][i]["Documents"]) + " | " + str(manager.dialog_data['author_a'][i]["Affiliation"]))
     manager.dialog_data['active_array'] = manager.dialog_data['author_a']
 
 
@@ -799,7 +799,7 @@ async def sort_by_author_z(callback: CallbackQuery, button: Button, manager: Dia
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
     for i in range(len(manager.dialog_data['author_z'])):
-        manager.find(str(i)).text = Const(str(i + 1) + ". " + str(manager.dialog_data['author_z'][i]["Author"]) + " | " + str(manager.dialog_data['author_z'][i]["Documents"]) + " | " + str(manager.dialog_data['author_z'][i]["Affiliation"]))
+        manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(manager.dialog_data['author_z'][i]["Author"]) + " | " + str(manager.dialog_data['author_z'][i]["Documents"]) + " | " + str(manager.dialog_data['author_z'][i]["Affiliation"]))
     manager.dialog_data['active_array'] = manager.dialog_data['author_z']
 
 
@@ -818,7 +818,7 @@ async def sort_by_affil_a(callback: CallbackQuery, button: Button, manager: Dial
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
     for i in range(len(manager.dialog_data['affil_a'])):
-        manager.find(str(i)).text = Const(str(i + 1) + ". " + str(manager.dialog_data['affil_a'][i]["Author"]) + " | " + str(manager.dialog_data['affil_a'][i]["Documents"]) + " | " + str(manager.dialog_data['affil_a'][i]["Affiliation"]))
+        manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(manager.dialog_data['affil_a'][i]["Author"]) + " | " + str(manager.dialog_data['affil_a'][i]["Documents"]) + " | " + str(manager.dialog_data['affil_a'][i]["Affiliation"]))
     manager.dialog_data['active_array'] = manager.dialog_data['affil_a']
 
 
@@ -837,7 +837,7 @@ async def sort_by_affil_z(callback: CallbackQuery, button: Button, manager: Dial
     manager.dialog_data['active_array'] = manager.dialog_data['doc_count_max']
 
     for i in range(len(manager.dialog_data['affil_z'])):
-        manager.find(str(i)).text = Const(str(i + 1) + ". " + str(manager.dialog_data['affil_z'][i]["Author"]) + " | " + str(manager.dialog_data['affil_z'][i]["Documents"]) + " | " + str(manager.dialog_data['affil_z'][i]["Affiliation"]))
+        manager.find(f"auth_{i}").text = Const(str(i + 1) + ". " + str(manager.dialog_data['affil_z'][i]["Author"]) + " | " + str(manager.dialog_data['affil_z'][i]["Documents"]) + " | " + str(manager.dialog_data['affil_z'][i]["Affiliation"]))
     manager.dialog_data['active_array'] = manager.dialog_data['affil_z']
 
 
