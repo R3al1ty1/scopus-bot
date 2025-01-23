@@ -603,7 +603,7 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 async def download_file(callback: CallbackQuery, button: Button, manager: DialogManager):
     manager.dialog_data['pressed_new'] = True
     folder_path = f"{PROJECT_DIR}/scopus_files/{manager.dialog_data['folder_id']}"
-    file_path = f"{folder_path}/scopus.ris"
+    file_path = f"{folder_path}/scopus.{manager.dialog_data['selected_download_type']}"
     url = f"https://scopus.baixo.keenetic.pro:8443/pub/download/files/{manager.dialog_data['selected_download_type']}/{manager.dialog_data['folder_id']}"
     
     try:

@@ -63,20 +63,20 @@ services:
     networks:
       - mynetwork
 
-  monitor:
-    build:
-      context: .
-      dockerfile: Dockerfile.monitor
-    container_name: status_monitor
-    restart: always
-    env_file:
-      - .env
-    volumes:
-      - .:/app
-    working_dir: /app
-    command: python checker.py
-    networks:
-      - mynetwork
+  # monitor:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.monitor
+  #   container_name: status_monitor
+  #   restart: always
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - .:/app
+  #   working_dir: /app
+  #   command: python checker.py
+  #   networks:
+  #     - mynetwork
 
   redis:
     image: redis:7
