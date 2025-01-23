@@ -517,6 +517,8 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                         files_path = "scopus_files/" + str(manager.dialog_data['folder_id'])
                         current_dir = os.path.dirname(os.path.abspath(__file__))
                         folder_path = os.path.join(current_dir, files_path)
+                        parts = folder_path.split('/')
+                        folder_path = '/' + '/'.join(parts[2:])
                         media = []
                         csv_file = None
                         ris_file = None
@@ -602,9 +604,10 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
 
 async def download_file(callback: CallbackQuery, button: Button, manager: DialogManager):
     manager.dialog_data['pressed_new'] = True
+    download_type = manager.dialog_data.get('selected_download_type', "ris")
     folder_path = f"{PROJECT_DIR}/scopus_files/{manager.dialog_data['folder_id']}"
-    file_path = f"{folder_path}/scopus.{manager.dialog_data['selected_download_type']}"
-    url = f"https://scopus.baixo.keenetic.pro:8443/pub/download/files/{manager.dialog_data['selected_download_type']}/{manager.dialog_data['folder_id']}"
+    file_path = f"{folder_path}/scopus.{download_type}"
+    url = f"https://scopus.baixo.keenetic.pro:8443/pub/download/files/{download_type}/{manager.dialog_data['folder_id']}"
     
     try:
         await callback.message.answer("Отлично! Подождите, пожалуйста, пока мы скачиваем файл — это может занять некоторое время. ⏳")
@@ -612,7 +615,7 @@ async def download_file(callback: CallbackQuery, button: Button, manager: Dialog
                 async with session.post(url, ssl=False) as response:
                     stat = await get_current_status(manager.dialog_data['folder_id'], 2, 30)
                     if stat:
-                        url_files = f"https://scopus.baixo.keenetic.pro:8443/pub/get/files/{manager.dialog_data['selected_download_type']}/{manager.dialog_data['folder_id']}"
+                        url_files = f"https://scopus.baixo.keenetic.pro:8443/pub/get/files/{download_type}/{manager.dialog_data['folder_id']}"
 
                         # Создаем директорию, если она не существует
                         os.makedirs(folder_path, exist_ok=True)
