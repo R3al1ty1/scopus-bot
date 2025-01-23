@@ -48,7 +48,7 @@ class FSMGeneral(StatesGroup):
     filling_query = State()           # Состояние написания запроса
     validate_pubs = State()                # Валидация введенных данных
     check_pubs = State()              # Просмотр 50 статей
-
+    choose_download_type = State()
 
 async def dialog_get_data(dialog_manager: DialogManager, **kwargs):
     filter_type = ""
@@ -77,15 +77,20 @@ async def dialog_get_data(dialog_manager: DialogManager, **kwargs):
 
 async def get_current_status(folder_id, status_number, retries):
     for i in range(retries):
-        await asyncio.sleep(10)
-        status_number = str(status_number)
-        url = f"https://scopus.baixo.keenetic.pro:8443/status/{folder_id}/{status_number}"
+        try:
+            await asyncio.sleep(10)
+            status_number = str(status_number)
+            url = f"https://scopus.baixo.keenetic.pro:8443/status/{folder_id}/{status_number}"
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, ssl=False) as response:
-                data = await response.json()
-                if data.get('status') == "true":
-                    return True
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, ssl=False) as response:
+                    data = await response.json()
+                    if data.get('status') == "true":
+                        return True
+                    elif data.get('status') == "failed":
+                        return False
+        except:
+            return False
     return False
 
 
@@ -203,6 +208,28 @@ async def author_search_type(event, widget, manager: DialogManager, *args, **kwa
     await manager.update(data={"selected_type": selected_search})
 
 
+async def document_download_type(event, widget, manager: DialogManager, *args, **kwargs):
+    selected_id = widget.widget_id
+
+    checkboxes = [
+        manager.dialog().find("ris"),
+        manager.dialog().find("csv"),
+    ]
+
+    for checkbox in checkboxes:
+        if checkbox.widget_id != selected_id:
+            await checkbox.set_checked(event=event, checked=False, manager=manager)
+        else:
+            await checkbox.set_checked(event=event, checked=True, manager=manager)
+
+    selected_download_type = {
+        "ris": "ris",
+        "csv": "csv",
+    }.get(selected_id, "ris")
+
+    await manager.update(data={"selected_download_type": selected_download_type})
+
+
 async def set_not_pressed_author(callback: CallbackQuery, button: Button, manager: DialogManager):
     manager.dialog_data['pressed'] = False
     manager.dialog_data['pressed_new'] = False
@@ -260,6 +287,8 @@ async def start_search_pubs(callback: CallbackQuery, button: Button, manager: Di
 
     url = "https://scopus.baixo.keenetic.pro:8443/pub/search"
     query = await dialog_get_data(manager)
+    query["username"] = callback.from_user.username
+    query["user_id"] = callback.from_user.id
     data = {
             "filters_dct": query,
             "folder_id": str(manager.dialog_data['folder_id']),
@@ -275,6 +304,11 @@ async def start_search_pubs(callback: CallbackQuery, button: Button, manager: Di
                 async with session.get(url, ssl=False) as resp:
                     respData = await resp.json()
                     result = respData.get('result')
+            else:
+                await callback.message.answer(text="По Вашему запросу не было найдено ни одной статьи.\n\nСпасибо, что воспользовались нашим ботом! 🎉\n\nЧтобы искать снова, напишите команду /search")
+                await manager.done()
+                return
+
     if result[0]:
         manager.dialog_data['pubs_found'] = result[1]
         manager.dialog_data['newest'] = result[2]
@@ -312,7 +346,8 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
         manager.dialog_data['flag'] = flag
         url = "https://scopus.baixo.keenetic.pro:8443/auth/search"
         filters = await dialog_authors(manager)
-
+        filters["username"] = callback.from_user.username
+        filters["user_id"] = callback.from_user.id
         data = {
             "filters_dct": filters,
             "folder_id": str(manager.dialog_data['folder_id']),
@@ -329,6 +364,11 @@ async def start_search_auth(callback: CallbackQuery, button: Button, manager: Di
                     async with session.get(url, ssl=False) as resp:
                         respData = await resp.json()
                         result = respData.get('result')
+                else:
+                    await callback.message.answer(text="По Вашему запросу не было найдено ни одного автора.\n\nСпасибо, что воспользовались нашим ботом! 🎉\n\nЧтобы искать снова, напишите команду /search")
+                    await manager.done()
+                    return
+
         if result[0] or manager.dialog_data.get("selected_type") == "keywords":
             for i in range(50):
                 manager.find(str(i)).text = Const("-")
@@ -428,7 +468,7 @@ def pub_buttons_create():
 
 
 def auth_buttons_create():
-    buttons = [Button(Const('-'), id=str(i), on_click=process_auth_click, when=~F["pressed_new"]) for i in range(50)]
+    buttons = [Button(Const('-'), id=f"auth_{i}", on_click=process_auth_click, when=~F["pressed_new"]) for i in range(50)]
     return buttons
 
 
@@ -468,11 +508,9 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
             }
             response = requests.post(url, json=data, verify=False)
         
-            stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
-
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=data, ssl=False) as response:
-                    stat = await get_current_status(manager.dialog_data['folder_id'], 1, 10)
+                    stat = await get_current_status(manager.dialog_data['folder_id'], 1, 30)
                     if stat:
 
                         url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
@@ -528,6 +566,10 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                             result = respData.get('result')
                         except:
                             print(traceback.print_exc())
+                    else:
+                        await callback.message.answer(text="По Вашему запросу не было найдено ни одного автора.\n\nСпасибо, что воспользовались нашим ботом! 🎉\n\nЧтобы искать снова, напишите команду /search")
+                        await manager.done()
+                        return
 
                 
 
@@ -562,36 +604,41 @@ async def download_file(callback: CallbackQuery, button: Button, manager: Dialog
     manager.dialog_data['pressed_new'] = True
     folder_path = f"{PROJECT_DIR}/scopus_files/{manager.dialog_data['folder_id']}"
     file_path = f"{folder_path}/scopus.ris"
+    url = f"https://scopus.baixo.keenetic.pro:8443/pub/download/files/{manager.dialog_data['selected_download_type']}/{manager.dialog_data['folder_id']}"
     
     try:
         await callback.message.answer("Отлично! Подождите, пожалуйста, пока мы скачиваем файл — это может занять некоторое время. ⏳")
-        stat = await get_current_status(manager.dialog_data['folder_id'], 2, 20)
-        if stat:
-            url_files = f"https://scopus.baixo.keenetic.pro:8443/pub/get/files/{manager.dialog_data['folder_id']}"
+        async with aiohttp.ClientSession() as session:
+                async with session.post(url, ssl=False) as response:
+                    stat = await get_current_status(manager.dialog_data['folder_id'], 2, 30)
+                    if stat:
+                        url_files = f"https://scopus.baixo.keenetic.pro:8443/pub/get/files/{manager.dialog_data['selected_download_type']}/{manager.dialog_data['folder_id']}"
 
-            # Создаем директорию, если она не существует
-            os.makedirs(folder_path, exist_ok=True)
+                        # Создаем директорию, если она не существует
+                        os.makedirs(folder_path, exist_ok=True)
 
-            # Асинхронный запрос к серверу для загрузки файла
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url_files, ssl=False) as response:
-                    if response.status == 200:
-                        with open(file_path, 'wb') as f:
-                            while True:
-                                chunk = await response.content.read(1024)
-                                if not chunk:
-                                    break
-                                f.write(chunk)
+                        # Асинхронный запрос к серверу для загрузки файла
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(url_files, ssl=False) as response:
+                                if response.status == 200:
+                                    with open(file_path, 'wb') as f:
+                                        while True:
+                                            chunk = await response.content.read(1024)
+                                            if not chunk:
+                                                break
+                                            f.write(chunk)
+                                else:
+                                    await callback.message.answer("Не удалось загрузить файл. Пожалуйста, попробуйте позже.")
+                                    return
+
+                        # Отправляем файл пользователю
+                        await callback.message.answer_document(document=FSInputFile(file_path))
+                        await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
+
                     else:
-                        await callback.message.answer("Не удалось загрузить файл. Пожалуйста, попробуйте позже.")
+                        await callback.message.answer(text="По Вашему запросу не было найдено ни одной статьи.\n\nСпасибо, что воспользовались нашим ботом! 🎉\n\nЧтобы искать снова, напишите команду /search")
+                        await manager.done()
                         return
-
-            # Отправляем файл пользователю
-            await callback.message.answer_document(document=FSInputFile(file_path))
-            await callback.message.answer("Спасибо, что воспользовались нашим ботом! 🎉\nЧтобы начать новый поиск, напишите команду /search")
-
-        else:
-            await callback.message.answer("Файл еще не готов. Пожалуйста, попробуйте позже.")
 
     except Exception as e:
         await callback.message.answer("Произошла ошибка, скорее всего, Scopus начудил.\n\nМы не спишем вам запрос. Попробуйте заново или переформулируйте запрос.")
@@ -1095,10 +1142,33 @@ main_menu = Dialog(
             width=1,
             height=8,
         ),
-        Button(text=Const("Скачать файл со всеми статьями 👑"), id="download", on_click=download_file, when=~F["pressed_new"]),
+        Button(text=Const("Скачать файл со всеми статьями 👑"), id="choose_download_type", on_click=Next()),
         #Button(text=Const("Не скачивать файл"), id="do_not_download", on_click=do_not_download_file, when=~F["pressed_new"]),
         state=FSMGeneral.check_pubs,
         getter=pubs_found
+    ),
+    Window(
+        Const(
+            "Выберите тип файла: CSV или RIS."
+        ),
+        Row(
+            Checkbox(
+                Const("☑️ CSV"),
+                Const("⬜ CSV"),
+                id="csv",
+                default=False,  # so it will be checked by default,
+                on_click=document_download_type,
+            ),
+            Checkbox(
+                Const("☑️ RIS"),
+                Const("⬜ RIS"),
+                id="ris",
+                default=True,  # so it will be checked by default,
+                on_click=document_download_type,
+            ),
+        ),
+        Button(text=Const("Скачать файл со всеми статьями 👑"), id="download", on_click=download_file, when=~F["pressed_new"]),
+        state=FSMGeneral.choose_download_type,
     ),
     Window(
         Const(

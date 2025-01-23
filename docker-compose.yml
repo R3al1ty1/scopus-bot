@@ -12,7 +12,7 @@ services:
     env_file:
       - .env
     ports:
-      - "5435:5432"  # Порт для хоста
+      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -30,7 +30,7 @@ services:
       - redis
       - celery
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}  # Используем правильный порт
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       TELEGRAM_TOKEN: ${BOT_TOKEN}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
@@ -52,7 +52,7 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}  # Используем правильный порт
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       TELEGRAM_TOKEN: ${BOT_ADMIN}
     env_file:
       - .env
@@ -60,6 +60,21 @@ services:
       - .:/app
     working_dir: /app
     command: python admin.py
+    networks:
+      - mynetwork
+
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    container_name: status_monitor
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python checker.py
     networks:
       - mynetwork
 
@@ -84,7 +99,7 @@ services:
       - redis
       - db
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}  # Используем правильный порт
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       TELEGRAM_TOKEN: ${BOT_TOKEN}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
