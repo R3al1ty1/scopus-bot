@@ -506,19 +506,14 @@ async def process_auth_click(callback: CallbackQuery, button: Button, manager: D
                 "author_id": str(manager.dialog_data['active_array'][int(button_id)-1]["AuthorID"]),
                 "verification": "example_verification"
             }
-            response = requests.post(url, json=data, verify=False)
         
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=data, ssl=False) as response:
-                    stat = await get_current_status(manager.dialog_data['folder_id'], 1, 30)
+                    stat = await get_current_status(manager.dialog_data['folder_id'], 2, 30)
                     if stat:
 
                         url_files = f"https://scopus.baixo.keenetic.pro:8443/auth/get/files/{manager.dialog_data['folder_id']}"
-                        files_path = "scopus_files/" + str(manager.dialog_data['folder_id'])
-                        current_dir = os.path.dirname(os.path.abspath(__file__))
-                        folder_path = os.path.join(current_dir, files_path)
-                        parts = folder_path.split('/')
-                        folder_path = '/' + '/'.join(parts[2:])
+                        folder_path = f"{PROJECT_DIR}/scopus_files/{str(manager.dialog_data['folder_id'])}"
                         media = []
                         csv_file = None
                         ris_file = None
